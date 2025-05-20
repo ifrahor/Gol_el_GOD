@@ -28,10 +28,13 @@ const Users = () => {
     <div className="p-4">
       <h2 className="text-xl font-semibold mb-4">Users</h2>
       <ul className="space-y-2">
-        {users.map(({ id, name, email }) => (
+        {users.map(({ id, role, email,firstName}) => (
           <li key={id} className="border p-3 rounded shadow-sm">
-            <p><strong>Name:</strong> {name}</p>
+            <p><strong>Name:</strong>{firstName}</p>
             <p><strong>Email:</strong> {email}</p>
+            <p><strong>Role:</strong> {role}</p>
+            
+
           </li>
         ))}
       </ul>

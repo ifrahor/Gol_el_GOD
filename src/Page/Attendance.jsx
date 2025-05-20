@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { db } from "../firebase"; // Adjust the path to your firebase config
 import { collection, onSnapshot } from "firebase/firestore";
 
-const Attendence = () => {
+const Attendance = () => {
   const [records, setRecords] = useState([]);
 
   useEffect(() => {
@@ -39,4 +39,4 @@ const Attendence = () => {
   );
 };
 
-export default Attendence;
+export default Attendance;

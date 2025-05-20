@@ -1,0 +1,18 @@
+.nav-link {
+  text-decoration: none;
+  padding: 10px 8px;
+  font-size: 16px;
+  color: white;
+  transition: color 0.3s ease, border-bottom 0.3s ease;
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  color: #a2d5ff; /* צבע ה-hover */
+}
+
+.nav-link.active {
+  color: #ffd700;
+  font-weight: bold;
+  border-bottom: 3px solid #ffd700;
+}
