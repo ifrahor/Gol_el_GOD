@@ -2,18 +2,21 @@ import React, { useState } from 'react';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import Register from './Register';
+import { useNavigate } from 'react-router-dom'; // ✅ ייבוא
 
-function Login({onSuccess}) {
+function Login({ onSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
+  const navigate = useNavigate(); // ✅ קריאה לפונקציה
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      onSuccess() ;
+      onSuccess();
       alert('התחברת בהצלחה!');
+      navigate('/HomePage'); // ✅ ניווט אחרי התחברות
     } catch (error) {
       alert(`שגיאה בהתחברות: ${error.message}`);
     }
