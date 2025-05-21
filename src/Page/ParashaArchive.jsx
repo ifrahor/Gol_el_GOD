@@ -1,19 +1,48 @@
-import React from 'react';
-import Navbar from '../components/Navbar';
+import React, { useEffect, useState } from 'react';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 
 function ParashaArchive() {
-  const userRole = 'manager';
-  const userName = 'Oralia';
-  const userPhotoURL = '';
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState({});
+  const navigate = useNavigate();
+  const auth = getAuth();
+  const db = getFirestore();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+
+        const userDocRef = doc(db, 'users', currentUser.email);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          setUserData(userDocSnap.data());
+        } else {
+          console.warn('לא נמצא משתמש במסד הנתונים');
+        }
+        setLoading(false);
+      } else {
+        if (!loading) {
+          navigate('/');
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, db, navigate, loading]);
+
+  if (loading) return <div>טוען...</div>;
 
   return (
-    <Layout>
-      <Navbar role={userRole} userName={userName} userPhotoURL={userPhotoURL} onLogout={() => {}} />
-      <div style={{ padding: '20px', marginTop: '70px' }}>
-        <h1>פרשת שבוע - Parasha Archive</h1>
-        <p>כאן התוכן של ארכיון פרשת השבוע</p>
-      </div>
+    <Layout userData={userData}>
+      <h1>כאן יהיה הארכיון של הפרשה </h1>
+      {userData.role === 'coach' && <div>פרופיל  למאמן</div>}
+      {userData.role === 'manager' && <div>פרופיל למנהל</div>}
     </Layout>
   );
 }
