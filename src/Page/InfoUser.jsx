@@ -7,7 +7,7 @@ import Layout from '../components/Layout';
 function InfoUser() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState({});
+  const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
   const auth = getAuth();
   const db = getFirestore();
@@ -16,32 +16,52 @@ function InfoUser() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-
         const userDocRef = doc(db, 'users', currentUser.email);
         const userDocSnap = await getDoc(userDocRef);
-
         if (userDocSnap.exists()) {
           setUserData(userDocSnap.data());
         } else {
           console.warn('לא נמצא משתמש במסד הנתונים');
+          setUserData(null);
         }
         setLoading(false);
       } else {
-        if (!loading) {
-          navigate('/');
-        }
+        navigate('/login');
       }
     });
-
     return () => unsubscribe();
-  }, [auth, db, navigate, loading]);
+  }, [auth, db, navigate]);
 
-  if (loading) return <div>טוען...</div>;
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate('/login');
+  };
+
+  if (loading) return <div>טוען פרופיל...</div>;
+
+  if (!userData) return <div>משתמש לא נמצא</div>;
 
   return (
     <Layout userData={userData}>
-       {userData.role === 'coach' && <div>פרופיל  למאמן</div>}
-        {userData.role === 'manager' && <div>פרופיל למנהל</div>}
+      <main style={{ maxWidth: '600px', margin: 'auto', padding: '20px', textAlign: 'right', fontFamily: 'Arial, sans-serif' }}>
+        <h1>פרופיל משתמש</h1>
+        <div style={{ marginBottom: '15px' }}>
+          <strong>  שם פרטי:</strong> {userData.firstName || 'לא זמין'}
+        </div>
+        <div style={{ marginBottom: '15px' }}>
+          <strong>שם משפחה:</strong> {userData.lastName || 'לא זמין'}
+        </div>
+        <div style={{ marginBottom: '15px' }}>
+          <strong>אימייל:</strong> {user.email}
+        </div>
+        <div style={{ marginBottom: '15px' }}>
+          <strong>תפקיד:</strong> {userData.role || 'לא מוגדר'}
+        </div>
+        <div style={{ marginBottom: '15px' }}>
+          <strong>טלפון:</strong> {userData.telephone || 'לא זמין'}
+        </div>
+       
+      </main>
     </Layout>
   );
 }

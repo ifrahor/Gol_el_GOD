@@ -40,9 +40,9 @@ function MyGroups() {
 
   return (
     <Layout userData={userData}>
-      <h1>כאן יהיה הארכיו המאמרים להשראה </h1>
-      {userData.role === 'coach' && <div>פרופיל  למאמן</div>}
-      {userData.role === 'manager' && <div>פרופיל למנהל</div>}
+      <h1>כאן יהיה מילוי דוח הנוכחות של המאמנים </h1>
+      {userData.role === 'coach' && <div>כאן המאמן יוכל למלות פרטי דוחות נוכחות   למאמן</div>}
+      {userData.role === 'manager' && <div>אסור גישה  למנהל אם הוא הגיע לפו אז צריך לתקן את הקוד</div>}
     </Layout>
   );
 }

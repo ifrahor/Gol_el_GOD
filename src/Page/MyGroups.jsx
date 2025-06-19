@@ -40,9 +40,9 @@ function MyGroups() {
 
   return (
     <Layout userData={userData}>
-      <h1>כאן יהיה הארכיו המאמרים להשראה </h1>
-      {userData.role === 'coach' && <div>פרופיל  למאמן</div>}
-      {userData.role === 'manager' && <div>פרופיל למנהל</div>}
+      <h1>כאן קבוצות שלי</h1>
+      {userData.role === 'coach' && <div>פו יהיה הקבוצות של  למאמן</div>}
+      {userData.role === 'manager' && <div>אין גישה למנהל אם הגעת לדף הזה כאשר שאתה מנהל צריך לתקן את הקוד  למנהל</div>}
     </Layout>
   );
 }
