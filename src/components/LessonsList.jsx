@@ -98,11 +98,21 @@ export default function LessonsList({ lessons, isLoading }) {
               >
                 <Calendar size={16} />
                 <span style={{ fontWeight: "600", color: "#111827" }}>
-                  {format(new Date(lesson.date), "EEEE, MMMM d, yyyy")}
+                  {lesson.date?.toDate
+                    ? format(lesson.date.toDate(), "EEEE, MMMM d, yyyy")
+                    : format(new Date(lesson.date), "EEEE, MMMM d, yyyy")}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 16, fontSize: 14, color: "#4b5563" }}>
-                <span>{lesson.start_time} - {lesson.end_time}</span>
+                <span>
+                  {lesson.start_time?.toDate
+                    ? format(lesson.start_time.toDate(), "HH:mm")
+                    : lesson.start_time}{" "}
+                  -{" "}
+                  {lesson.end_time?.toDate
+                    ? format(lesson.end_time.toDate(), "HH:mm")
+                    : lesson.end_time}
+                </span>
               </div>
             </div>
           </div>

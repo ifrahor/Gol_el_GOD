@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { auth, db } from "../firebase"; // בדוק שהייבוא נכון
+import { auth, db } from "../firebase";
 import { Play, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 
@@ -15,6 +15,8 @@ import {
   getDocs,
   doc,
   getDoc,
+  addDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -30,7 +32,6 @@ function Attendance() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // מושך את פרטי המשתמש מ־Firestore לפי האימייל
           const userDocRef = doc(db, "users", user.email);
           const userSnapshot = await getDoc(userDocRef);
 
@@ -39,10 +40,10 @@ function Attendance() {
 
             setCurrentUser({
               ...user,
-              ...userDataFromDb, // מוסיף role, firstName וכו'
+              ...userDataFromDb,
             });
           } else {
-            setCurrentUser(user); // fallback אם אין מסמך ב־Firestore
+            setCurrentUser(user);
           }
         } catch (error) {
           console.error("Error fetching user data from Firestore:", error);
@@ -65,8 +66,8 @@ function Attendance() {
   const loadLessons = async () => {
     setIsLoading(true);
     try {
-      const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
-      const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+      const monthStart = Timestamp.fromDate(startOfMonth(currentMonth));
+      const monthEnd = Timestamp.fromDate(endOfMonth(currentMonth));
 
       const q = query(
         collection(db, "attendanceReports"),
@@ -76,14 +77,30 @@ function Attendance() {
       );
 
       const querySnapshot = await getDocs(q);
-      const lessonsData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const lessonsData = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+
+        let totalWorkTime = "";
+        if (data.start_time && data.end_time && data.start_time.toDate && data.end_time.toDate) {
+          const startDate = data.start_time.toDate();
+          const endDate = data.end_time.toDate();
+          const durationMs = endDate - startDate;
+          const hours = Math.floor(durationMs / (1000 * 60 * 60));
+          const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+          totalWorkTime = `${hours}h ${minutes}m`;
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          total_work_time: totalWorkTime,
+        };
+      });
 
       setLessons(lessonsData);
     } catch (error) {
       console.error("Error loading lessons:", error);
+      setLessons([]);
     }
     setIsLoading(false);
   };
@@ -97,20 +114,16 @@ function Attendance() {
     if (!lessonStartTime || !currentUser) return;
 
     const endTime = new Date();
-    const durationMs = endTime - lessonStartTime;
-    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
 
     const lessonData = {
-      date: format(lessonStartTime, "yyyy-MM-dd"),
-      start_time: format(lessonStartTime, "HH:mm"),
-      end_time: format(endTime, "HH:mm"),
-      total_work_time: `${hours}h ${minutes}m`,
+      date: Timestamp.fromDate(lessonStartTime),
+      start_time: Timestamp.fromDate(lessonStartTime),
+      end_time: Timestamp.fromDate(endTime),
       trainer_email: currentUser.email,
     };
 
     try {
-      await collection(db, "attendanceReports").add(lessonData);
+      await addDoc(collection(db, "attendanceReports"), lessonData);
     } catch (err) {
       console.error("Error saving lesson:", err);
     }
@@ -132,9 +145,8 @@ function Attendance() {
     setCurrentMonth(new Date());
   };
 
-  // אפשר להראות טקסט טעינה עד שהמשתמש נטען
   if (currentUser === null) {
-    return <div>Loading user data...</div>;
+    return <div>Loading ...</div>;
   }
 
   return (
@@ -150,31 +162,37 @@ function Attendance() {
         }}
       >
         <div style={{ maxWidth: 1024, width: "100%" }}>
-          {/* Header */}
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
+          {/* כותרת ו-Welcome אחד מתחת לשני */}
+          <div style={{ marginBottom: 8 }}>
             <h1
               style={{
                 fontSize: 36,
                 fontWeight: "bold",
                 color: "#111827",
-                marginBottom: 8,
+                margin: 0,
               }}
             >
               Trainer Attendance
             </h1>
-            <p style={{ fontSize: 20, color: "#4b5563" }}>
+            <p
+              style={{
+                fontSize: 20,
+                color: "#4b5563",
+                marginTop: 8,
+                marginBottom: 24,
+              }}
+            >
               Welcome back, {currentUser?.firstName || currentUser?.displayName || "Trainer"}
             </p>
           </div>
 
-          {/* Start Lesson Button */}
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
+          {/* כפתור התחל שיעור */}
+          <div style={{ marginBottom: 48 }}>
             <button
               onClick={startLesson}
               disabled={isLessonActive}
               style={{
-                background:
-                  "linear-gradient(90deg, #2563eb, #4f46e5)",
+                background: "linear-gradient(90deg, #2563eb, #4f46e5)",
                 color: "white",
                 padding: "18px 48px",
                 borderRadius: 30,
@@ -186,8 +204,7 @@ function Attendance() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 12,
-                boxShadow:
-                  "0 10px 20px rgba(59, 130, 246, 0.5)",
+                boxShadow: "0 10px 20px rgba(59, 130, 246, 0.5)",
                 transition: "all 0.3s ease",
               }}
             >

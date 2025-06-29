@@ -105,7 +105,7 @@ function App() {
         {/* זמינים לכל משתמש מחובר */}
         <Route
           path="/HomePage"
-          element={isAuthenticated ? <HomePage /> : <h1>Illegal</h1>}
+          element={isAuthenticated ? <HomePage /> : <h1>Illegal try again</h1>}
         />
         <Route
           path="/InspirationArticles"
