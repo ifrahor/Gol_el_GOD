@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase'; // Your Firebase config
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc,getDoc} from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
-function Register({setIsRegister}) {
+function Register({ setIsRegister }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -31,20 +31,22 @@ function Register({setIsRegister}) {
     }
 
     try {
-    
       // 1. Create user in Authentication
       await createUserWithEmailAndPassword(auth, email, password);
 
-      // 2. Create user document in Firestore
+      // 2. Create user document in Firestore עם השדה role ושמירה לפי מייל
       await setDoc(doc(db, 'users', email), {
         firstName,
         lastName,
         telephone,
         email,
+        role: 'coach', // ברירת מחדל - מאמן
       });
-      setIsRegister(false) ;
+
+      setIsRegister(false);
       alert('Registration successful!');
-      // Optionally reset form
+
+      // Reset form
       setFormData({
         firstName: '',
         lastName: '',
@@ -53,7 +55,6 @@ function Register({setIsRegister}) {
         password: '',
         confirmPassword: '',
       });
-
     } catch (error) {
       alert(`Registration failed: ${error.message}`);
     }
@@ -63,13 +64,63 @@ function Register({setIsRegister}) {
     <div style={{ maxWidth: '400px', margin: '0 auto' }}>
       <h2>Register</h2>
       <form onSubmit={handleSubmit}>
-        <input name="firstName" type="text" placeholder="First Name" value={formData.firstName} onChange={handleChange} required style={{ width: '100%', marginBottom: '10px' }} />
-        <input name="lastName" type="text" placeholder="Last Name" value={formData.lastName} onChange={handleChange} required style={{ width: '100%', marginBottom: '10px' }} />
-        <input name="telephone" type="text" placeholder="Telephone" value={formData.telephone} onChange={handleChange} required style={{ width: '100%', marginBottom: '10px' }} />
-        <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleChange} required style={{ width: '100%', marginBottom: '10px' }} />
-        <input name="password" type="password" placeholder="Password" value={formData.password} onChange={handleChange} required style={{ width: '100%', marginBottom: '10px' }} />
-        <input name="confirmPassword" type="password" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required style={{ width: '100%', marginBottom: '10px' }} />
-        <button type="submit" style={{ width: '100%' }}>Register</button>
+        <input
+          name="firstName"
+          type="text"
+          placeholder="First Name"
+          value={formData.firstName}
+          onChange={handleChange}
+          required
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <input
+          name="lastName"
+          type="text"
+          placeholder="Last Name"
+          value={formData.lastName}
+          onChange={handleChange}
+          required
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <input
+          name="telephone"
+          type="text"
+          placeholder="Telephone"
+          value={formData.telephone}
+          onChange={handleChange}
+          required
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <input
+          name="email"
+          type="email"
+          placeholder="Email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="Password"
+          value={formData.password}
+          onChange={handleChange}
+          required
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <input
+          name="confirmPassword"
+          type="password"
+          placeholder="Confirm Password"
+          value={formData.confirmPassword}
+          onChange={handleChange}
+          required
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <button type="submit" style={{ width: '100%' }}>
+          Register
+        </button>
       </form>
     </div>
   );

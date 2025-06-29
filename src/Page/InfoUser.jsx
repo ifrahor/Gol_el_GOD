@@ -39,7 +39,6 @@ function InfoUser() {
 
   if (loading) return <div>טוען פרופיל...</div>;
 
-  if (!userData) return <div>משתמש לא נמצא</div>;
 
   return (
     <Layout userData={userData}>

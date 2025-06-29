@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -17,6 +17,7 @@ function HomePage() {
       if (currentUser) {
         setUser(currentUser);
 
+        // כאן משתמשים ב-email כי המסמכים בקולקשן users נשמרים לפי מייל
         const userDocRef = doc(db, 'users', currentUser.email);
         const userDocSnap = await getDoc(userDocRef);
 
@@ -24,17 +25,18 @@ function HomePage() {
           setUserData(userDocSnap.data());
         } else {
           console.warn('לא נמצא משתמש במסד הנתונים');
+          setUserData({});
         }
         setLoading(false);
       } else {
-        if (!loading) {
-          navigate('/');
-        }
+        setUser(null);
+        setLoading(false);
+        navigate('/'); // מפנים לדף ההתחברות אם לא מחוברים
       }
     });
 
     return () => unsubscribe();
-  }, [auth, db, navigate, loading]);
+  }, [auth, db, navigate]);
 
   if (loading) return <div>טוען...</div>;
 
