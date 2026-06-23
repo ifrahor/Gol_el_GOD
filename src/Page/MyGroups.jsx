@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 
@@ -8,9 +8,10 @@ function MyGroups() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState({});
-  const [fileName, setFileName] = useState(''); 
   const [uploading, setUploading] = useState(false); 
-  const [fileUrl, setFileUrl] = useState(''); 
+  
+  // שינוי הסטייט למערך שמכיל את כל קבוצות המאמן
+  const [savedFiles, setSavedFiles] = useState([]); 
   
   const navigate = useNavigate();
   const auth = getAuth();
@@ -28,11 +29,12 @@ function MyGroups() {
           const data = userDocSnap.data();
           setUserData(data);
           
-          if (data.studentListUrl) {
-            setFileUrl(data.studentListUrl);
-          }
-          if (data.studentListName) {
-            setFileName(data.studentListName);
+          // טעינת מערך הקבצים מה-DB במידה והוא קיים, אחרת מערך ריק
+          if (data.studentLists && Array.isArray(data.studentLists)) {
+            setSavedFiles(data.studentLists);
+          } else if (data.studentListUrl) {
+            // תמיכת לאחור: אם היה קובץ ישן בודד, נכניס אותו כמערך
+            setSavedFiles([{ url: data.studentListUrl, name: data.studentListName || 'קבוצה ללא שם' }]);
           }
         } else {
           console.warn('לא נמצא משתמש במסד הנתונים');
@@ -48,11 +50,11 @@ function MyGroups() {
     return () => unsubscribe();
   }, [auth, db, navigate, loading]);
 
+  // פונקציית העלאה שמוסיפה קובץ חדש למערך בתוך ה-Firestore
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
 
-    setFileName(file.name);
     setUploading(true);
 
     const reader = new FileReader();
@@ -61,20 +63,30 @@ function MyGroups() {
     reader.onload = async () => {
       try {
         const base64Url = reader.result;
-        
+        const newFileObject = {
+          url: base64Url,
+          name: file.name,
+          uploadedAt: new Date().toISOString() // הוספת תאריך כדי שנוכל להבדיל ביניהם
+        };
+
         const userDocRef = doc(db, 'users', user.email);
+        
+        // יצירת המערך המעודכן
+        const updatedFiles = [...savedFiles, newFileObject];
+
+        // עדכון בסיס הנתונים עם המערך החדש
         await updateDoc(userDocRef, {
-          studentListUrl: base64Url,
-          studentListName: file.name
+          studentLists: updatedFiles
         });
 
-        setFileUrl(base64Url);
-        console.log("הקובץ נשמר בהצלחה בבסיס הנתונים!");
+        setSavedFiles(updatedFiles);
+        console.log("הקובץ נוסף בהצלחה למערך הקבוצות!");
       } catch (error) {
         console.error("Error saving file to Firestore:", error);
         alert("השמירה נכשלה, ודאי שחוקי הגישה ב-Firestore פתוחים.");
       } finally {
         setUploading(false);
+        e.target.value = ''; // איפוס ה-input כדי שיהיה אפשר להעלות את אותו הקובץ שוב אם נרצה
       }
     };
 
@@ -85,23 +97,26 @@ function MyGroups() {
     };
   };
 
-  const handleRemoveFile = async () => {
+  // פונקציית מחיקה שמסירה קובץ ספציפי מהמערך לפי ה-URL שלו
+  const handleRemoveFile = async (fileToRemove) => {
     if (!user) return;
 
-    const confirmDelete = window.confirm("האם אתה בטוח שברצונך למחוק את קובץ רשימת התלמידים?");
+    const confirmDelete = window.confirm(`האם אתה בטוח שברצונך למחוק את הקובץ: ${fileToRemove.name}?`);
     if (!confirmDelete) return;
 
     setUploading(true);
 
     try {
+      // סינון הקובץ שרוצים למחוק מתוך המערך המקומי
+      const updatedFiles = savedFiles.filter(file => file.url !== fileToRemove.url);
+
       const userDocRef = doc(db, 'users', user.email);
+      // עדכון ה-DB עם המערך המקוצר
       await updateDoc(userDocRef, {
-        studentListUrl: null,
-        studentListName: null
+        studentLists: updatedFiles
       });
 
-      setFileUrl('');
-      setFileName('');
+      setSavedFiles(updatedFiles);
       alert("הקובץ הוסר בהצלחה!");
     } catch (error) {
       console.error("Error deleting file from Firestore:", error);
@@ -111,16 +126,16 @@ function MyGroups() {
     }
   };
 
-  // פונקציה חדשה שעוקפת את חסימת האבטחה של הדפדפן ומציגה את ה-Base64 PDF
-  const handleOpenFile = () => {
-    if (!fileUrl) return;
+  // פונקציית הפתיחה המאובטחת שעובדת על קובץ ספציפי שנבחר
+  const handleOpenFile = (file) => {
+    if (!file || !file.url) return;
     
     const newWindow = window.open();
     if (newWindow) {
       newWindow.document.write(
-        `<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+        `<iframe src="${file.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
       );
-      newWindow.document.title = fileName || "רשימת תלמידים";
+      newWindow.document.title = file.name || "רשימת תלמידים";
     } else {
       alert("הדפדפן חסם את פתיחת החלון. אנא אפשרי פופ-אפים באתר זה.");
     }
@@ -134,9 +149,10 @@ function MyGroups() {
         
         {userData.role === 'coach' && (
           <div style={{ backgroundColor: '#f0f7ff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-            <h2 style={{ color: '#1e3a8a', fontSize: '24px', marginBottom: '20px', fontWeight: 'bold' }}>רשימת התלמידים</h2>
+            <h2 style={{ color: '#1e3a8a', fontSize: '24px', marginBottom: '20px', fontWeight: 'bold' }}>רשימת התלמידים של הקבוצות שלי</h2>
       
-            {!fileUrl && !uploading && (
+            {/* כפתור ההעלאה תמיד גלוי, כדי שיהיה אפשר להוסיף עוד ועוד קבוצות */}
+            {!uploading && (
               <label style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -149,42 +165,52 @@ function MyGroups() {
                 cursor: 'pointer',
                 backgroundColor: '#ffffff',
                 padding: '20px',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                marginBottom: '20px'
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <svg style={{ width: '36px', height: '36px', color: '#3b82f6', marginBottom: '10px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>לחץ לבחירת קובץ PDF</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>לחצי להוספת קובץ PDF של קבוצה נוספת</span>
                 </div>
                 <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleFileChange} />
               </label>
             )}
 
-            {uploading && <p style={{ color: '#2563eb', fontSize: '14px', marginTop: '15px' }}>מבצע פעולה, אנא המתיני...</p>}
+            {uploading && <p style={{ color: '#2563eb', fontSize: '14px', marginTop: '15px', marginBottom: '15px' }}>מבצע פעולה, אנא המתיני...</p>}
 
-            {fileUrl && !uploading && (
-              <div style={{ marginTop: '10px', padding: '15px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                <p style={{ color: '#374151', fontSize: '14px', marginBottom: '12px', fontWeight: '500', wordBreak: 'break-all' }}>
-                  📄 {fileName}
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
-                  {/* הכפתור עודכן ל-button שמפעיל את הפונקציה החדשה */}
-                  <button 
-                    onClick={handleOpenFile}
-                    style={{ backgroundColor: '#22c55e', color: '#ffffff', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
-                  >
-                    פתיחת קובץ
-                  </button>
-                  <button 
-                    onClick={handleRemoveFile}
-                    style={{ backgroundColor: '#ef4444', color: '#ffffff', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
-                  >
-                    הסרת קובץ
-                  </button>
-                </div>
+            {/* לולאת Map שמציגה את כל הקבצים שהועלו אחד מתחת לשני */}
+            {savedFiles.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {savedFiles.map((file, index) => (
+                  <div key={index} style={{ padding: '15px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', textAlign: 'right' }}>
+                    <p style={{ color: '#374151', fontSize: '14px', marginBottom: '12px', fontWeight: '500', wordBreak: 'break-all' }}>
+                      📄 {file.name}
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+                      <button 
+                        onClick={() => handleOpenFile(file)}
+                        style={{ backgroundColor: '#22c55e', color: '#ffffff', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
+                      >
+                        פתיחת קובץ
+                      </button>
+                      <button 
+                        onClick={() => handleRemoveFile(file)}
+                        style={{ backgroundColor: '#ef4444', color: '#ffffff', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
+                      >
+                        הסרת קובץ
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
+
+            {savedFiles.length === 0 && !uploading && (
+              <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '10px' }}>טרם הועלו קבצי קבוצות.</p>
+            )}
+
           </div>
         )}
 
